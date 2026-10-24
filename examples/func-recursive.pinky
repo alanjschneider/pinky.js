@@ -1,0 +1,10 @@
+-- Recursive function calls are also permitted in Pinky.
+
+func factorial(n)
+  if n == 1 then
+    ret 1
+  end
+  ret n * factorial(n - 1)
+end
+
+println factorial(5) --> 120

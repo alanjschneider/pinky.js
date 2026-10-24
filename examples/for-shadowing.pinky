@@ -1,0 +1,8 @@
+-- If an outer variable of the same name exists, the loop variable will always shadow
+-- the outer variable (it will not replace or reuse the existing outer variable). 
+
+i := 999
+for i := 1, 10 do
+  println i
+end
+println i -- 999

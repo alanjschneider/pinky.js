@@ -1,0 +1,13 @@
+-- You can force a variable to be declared as local in the current environment, which
+-- will shadow any previous declaration of that identifier until the end of the current
+-- block scope. To assign a local variable, simply use the keyword local in front of the
+-- new assignment.
+
+x := 0
+i := 1
+while i <= 10 do
+  local x := 999 --> shadowing the previous x
+  println x
+  i := i + 1
+end
+println x --> 0
