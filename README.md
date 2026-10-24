@@ -1,12 +1,12 @@
 # Pinky.js
 
-Es una implementación del lenguaje [Pinky](https://pinky-lang.org) en JavaScript.
+An implementation of the [Pinky](https://pinky-lang.org) language in JavaScript.
 
-## Uso
+## Usage
 
-Descarga el código fuente y ejecuta ``node pinky.js <filename>``
+Download the source code and run ``node pinky.js <filename>``
 
-En la carpeta examples hay scripts ``.pinky`` que puedes ejecutar, por ejemplo: ``node pinky.js examples/mandelbrot.pinky``
+The examples folder contains ``.pinky`` scripts that you can run, for example: ``node pinky.js examples/mandelbrot.pinky``
 
-* Para ver los tokens puedes usar ``--tokens``.
-* Para ver el ast ``--ast``.
+* To view the tokens, use ``--tokens``.
+* To view the AST, use ``--ast``.
