@@ -18,7 +18,7 @@ import {
   ForStatement,
   IfStatement,
   Number,
-  Undefined,
+  Null,
 } from './Ast.js';
 import { ParserError } from './ParserError.js';
 
@@ -65,6 +65,13 @@ export class Parser {
     return false;
   }
 
+  optionalExpr() {
+    try {
+      return this.expr();
+    } catch {}
+    return new Null();
+  }
+
   expect(type) {
     if (this.peek().type === type) return this.advance();
 
@@ -84,7 +91,10 @@ export class Parser {
       return new Bool(false, line);
     } else if (this.match(TokenType.STRING)) {
       const raw = this.prevToken().lexeme;
-      const value = raw.slice(1, raw.length - 1).replace('\\n', '\n');
+      const value = raw
+        .slice(1, raw.length - 1)
+        .replace('\\n', '\n')
+        .replace('\\t', '\t');
       return new String(value, raw, line);
     } else if (this.match(TokenType.IDENTIFIER)) {
       const name = this.prevToken().lexeme;
@@ -304,13 +314,13 @@ export class Parser {
 
   return() {
     const line = this.peek().line;
-    return new ReturnStatement(this.expr(), line);
+    return new ReturnStatement(this.optionalExpr(), line);
   }
 
   printStmt(end = '') {
     const line = this.peek().line;
 
-    const expr = this.expr();
+    const expr = this.optionalExpr();
     return new PrintStatement(expr, end, line);
   }
 

@@ -6,7 +6,14 @@ const Type = {
   NUMBER: 0,
   STRING: 1,
   BOOL: 2,
+  NULL: 3,
 };
+
+class ReturnSignal {
+  constructor(value) {
+    this.value = value;
+  }
+}
 
 export class Interpreter {
   constructor() {}
@@ -25,6 +32,10 @@ export class Interpreter {
 
   Identifier(ast, env) {
     return env.getVar(ast.name);
+  }
+
+  Null(ast) {
+    return [Type.NULL, ast.value];
   }
 
   UnaryExpression(ast, env) {
@@ -94,7 +105,7 @@ export class Interpreter {
     switch (ast.operator) {
       case '+':
         const type = (leftType === Type.STRING || rightType === Type.STRING) ? Type.STRING : Type.NUMBER;
-        return [type, leftValue + rightValue];
+        return [type, (leftType === Type.NULL ? '' : leftValue) + (rightType === Type.NULL ? '' : rightValue)];
 
       case '-':
         if (leftType !== Type.NUMBER || rightType !== Type.NUMBER) {
@@ -199,7 +210,7 @@ export class Interpreter {
     }
 
     const ret = this.interpret(funcDecl.body, funcEnv);
-    if (ret) return ret;
+    if (ret instanceof ReturnSignal) return ret.value;
   }
 
   FuncDeclaration(ast, env) {
@@ -217,7 +228,7 @@ export class Interpreter {
   }
 
   ReturnStatement(ast, env) {
-    return this.interpret(ast.expression, env);
+    return new ReturnSignal(this.interpret(ast.expression, env));
   }
 
   ForStatement(ast, env) {
@@ -309,7 +320,8 @@ export class Interpreter {
 
   PrintStatement(ast, env) {
     const [type, value] = this.interpret(ast.expression, env);
-    process.stdout.write(value + ast.end);
+    if (type === Type.NULL) process.stdout.write(ast.end);
+    else process.stdout.write(value + ast.end);
   }
 
   AssignStatement(ast, env) {
@@ -332,13 +344,13 @@ export class Interpreter {
   Statements(ast, env) {
     for (const statement of ast.body) {
       const ret = this.interpret(statement, env);
-      if (ret && statement.type === 'ReturnStatement') return ret;
+      if (ret) return ret;
     }
   }
 
   Program(ast) {
     const globalEnv = new Environment(null);
-    this.interpret(ast.body, globalEnv);
+    return this.interpret(ast.body, globalEnv);
   }
 
   Undefined(ast) {

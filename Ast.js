@@ -155,10 +155,14 @@ export class UnaryExpression {
   }
 }
 
-export class Undefined {
+// For internal use only. Pinky doesn't allow explicit nulls.
+// Used by RetStatement and PrintStatement so they can be used
+// without an expression.
+export class Null {
   constructor(line) {
     this.line = line;
-    this.type = 'Undefined';
+    this.value = null;
+    this.type = 'Null';
   }
 }
 
@@ -178,8 +182,8 @@ export function print(ast, depth = 0) {
     case 'Identifier':
       console.log(indent + 'Identifier: ' + ast.name);
       break;
-    case 'Undefined':
-      console.log(indent + 'Undefined');
+    case 'Null':
+      console.log(indent + 'Null');
       break;
     case 'PrintStatement':
       console.log(indent + 'Print:');
@@ -188,8 +192,7 @@ export function print(ast, depth = 0) {
       break;
     case 'ReturnStatement':
       console.log(indent + 'Return:');
-      if (ast.expression) print(ast.expression, depth + 1);
-      else console.log(indent + '  void');
+      print(ast.expression, depth + 1);
       break;
     case 'Parameters':
       console.log(indent + 'Parameters: (' + (ast.values.length ? '' : ')'));
