@@ -11,12 +11,16 @@ import { print } from './Ast.js';
 import { Lexer } from './Lexer.js';
 import { Parser } from './Parser.js';
 import { Interpreter } from './Interpreter.js';
+import { Compiler } from './Compiler.js';
+import { printCode, VirtualMachine } from './VirtualMachine.js';
 
 const args = process.argv.slice(2);
 const options = {
   source: false,
   ast: false,
   tokens: false,
+  compiled: false,
+  bytecode: false,
 };
 
 let filename;
@@ -44,7 +48,21 @@ const parser = new Parser();
 const ast = parser.parse(tokens);
 if (options.ast) print(ast);
 
-const interpreter = new Interpreter();
-console.time('Executed in');
-interpreter.interpret(ast);
-console.timeEnd('Executed in');
+if (options.compiled) {
+  console.time('Executed in');
+  const compiler = new Compiler();
+  compiler.compile(ast);
+
+  if (options.bytecode) {
+    printCode(compiler.output, compiler.labels);
+  }
+
+  const vm = new VirtualMachine();
+  vm.execute(compiler.output, compiler.labels);
+  console.timeEnd('Executed in');
+} else {
+  console.time('Executed in');
+  const interpreter = new Interpreter();
+  interpreter.interpret(ast);
+  console.timeEnd('Executed in');
+}
