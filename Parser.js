@@ -379,7 +379,12 @@ export class Parser {
 
   stmts() {
     const statements = [];
-    while (!this.isAtEnd() && this.peek().type !== TokenType.END) {
+    while (
+      !this.isAtEnd() &&
+      this.peek().type !== TokenType.END &&
+      this.peek().type !== TokenType.ELIF &&
+      this.peek().type !== TokenType.ELSE
+    ) {
       statements.push(this.stmt());
     }
     return new Statements(statements);
