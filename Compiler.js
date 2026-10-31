@@ -1,3 +1,5 @@
+import { CompilerError } from './CompilerError.js';
+
 const Type = {
   NUMBER: 0,
   STRING: 1,
@@ -85,8 +87,9 @@ export class Compiler {
   Identifier(ast) {
     const symbol = this.getSymbol(ast.name);
     if (symbol === null) {
-      throw new Error(
-        `[Line ${ast.line}] Reference error: ${ast.name} is not defined.`,
+      throw new CompilerError(
+        ast.line,
+        `Reference error: ${ast.name} is not defined.`,
       );
     }
 
@@ -106,15 +109,17 @@ export class Compiler {
     const symbol = this.getSymbol(name);
 
     if (ast.local) {
-      if (symbol !== null) {
-        throw new Error(
-          `[Line ${ast.line}] Declaration error: local variable ${name} has already been declared.`,
+      if (symbol !== null && symbol.frame > 0) {
+        throw new CompilerError(
+          ast.line,
+          `Declaration error: local variable ${name} has already been declared.`,
         );
       }
 
       if (this.frames.length === 0)
-        throw new Error(
-          `[Line ${ast.line}] Local variables only be allowed inside a block (if/while/for/func).`,
+        throw new CompilerError(
+          ast.line,
+          `Local variables only be allowed inside a block (if/while/for/func).`,
         );
 
       const currentFrame = this.frames.at(-1);
@@ -146,13 +151,13 @@ export class Compiler {
       case '+':
       case '-':
         if (rightType !== Type.NUMBER) {
-          throw new Error('Invalid unary operation.');
+          throw new CompilerError(ast.line, 'Invalid unary operation.');
         }
         this.emit(ast.operator);
         return Type.NUMBER;
       case '~':
         if (rightType !== Type.BOOL) {
-          throw new Error('Invalid unary operation.');
+          throw new CompilerError(ast.line, 'Invalid unary operation.');
         }
         this.emit(ast.operator);
         return Type.BOOL;
@@ -174,7 +179,7 @@ export class Compiler {
 
         if (leftType !== Type.AUTO && rightType !== Type.AUTO) {
           if (leftType !== Type.NUMBER || rightType !== Type.NUMBER) {
-            throw new Error('Invalid aritmetic operation.');
+            throw new CompilerError(ast.line, 'Invalid aritmetic operation.');
           }
         }
 
@@ -187,7 +192,7 @@ export class Compiler {
       case '^':
       case '%':
         if (leftType !== Type.NUMBER || rightType !== Type.NUMBER) {
-          throw new Error('Invalid aritmetic operation.');
+          throw new CompilerError(ast.line, 'Invalid aritmetic operation.');
         }
 
         this.emit(ast.operator);
@@ -196,7 +201,7 @@ export class Compiler {
       case 'and':
       case 'or':
         if (leftType !== Type.BOOL || rightType !== Type.BOOL) {
-          throw new Error('Invalid boolean operation.');
+          throw new CompilerError(ast.line, 'Invalid boolean operation.');
         }
 
         this.emit(ast.operator);
@@ -208,7 +213,7 @@ export class Compiler {
       case '>=':
         if (leftType !== Type.AUTO && rightType !== Type.AUTO) {
           if (leftType !== Type.NUMBER || rightType !== Type.NUMBER) {
-            throw new Error('Invalid logic comparison.');
+            throw new CompilerError(ast.line, 'Invalid logic comparison.');
           }
         }
 
@@ -282,7 +287,7 @@ export class Compiler {
 
   compile(ast) {
     if (!this[ast.type]) {
-      throw new Error('Unsupported Ast node.');
+      throw new Error('Invalid code.');
     }
     return this[ast.type](ast);
   }
