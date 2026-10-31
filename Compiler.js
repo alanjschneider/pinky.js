@@ -7,26 +7,32 @@ const Type = {
 };
 
 export const Bytecode = {
-  PUSH: 0, // push value to the stack
-  BIN_OP: 1,
-  UN_OP: 2,
-  PRINT: 3,
-  PRINTLN: 4,
-  JMP: 5, // jump to label unconditionally
-  JMPZ: 6, // jump to label if the value on top of stack is zero
-  LOAD: 7, // search in frame and push to stack
-  STORE: 8, // pop from stack and store in frame
-  HALT: 9,
+  PUSH: 0, // put a value in the top of stack
+  POP: 1, // remove n values from the top of stack
+  BIN_OP: 2,
+  UN_OP: 3,
+  PRINT: 4,
+  PRINTLN: 5,
+  JMP: 6, // jump to label unconditionally
+  JMPZ: 7, // jump to label if the value on top of stack is zero
+  LOAD: 8, // search in frame and push to stack
+  STORE: 9, // pop from stack and store in frame
+  LOAD_LOCAL: 10,
+  STORE_LOCAL: 11,
+  HALT: 12,
 };
 
-export const BytecodeNames = Object.keys(Bytecode);
+export const Mnemonic = Object.keys(Bytecode);
 
 export class Compiler {
   constructor() {
     this.output = [];
     this.labels = {};
+    this.localsCount = 0;
+    this.globals = {};
+    this.frames = []; // frame = { index: number, frame: number };
     this.pc = 0;
-    this.labelCount = 0;
+    this.labelsCount = 0;
   }
 
   emit(...args) {
@@ -34,12 +40,31 @@ export class Compiler {
     this.output.push(...args);
   }
 
+  getSymbol(name) {
+    for (let i = this.frames.length - 1; i > -1; i--) {
+      const frame = this.frames[i];
+      if (frame.has(name)) return frame.get(name);
+    }
+
+    if (this.globals[name]) return this.globals[name];
+    return null;
+  }
+
   makeLabel(label) {
     this.labels[label] = this.pc;
   }
 
   generateLabelName() {
-    return 'L' + this.labelCount++;
+    return 'L' + this.labelsCount++;
+  }
+
+  startFrame() {
+    this.frames.push(new Map());
+  }
+
+  endFrame() {
+    const currentFrame = this.frames.pop();
+    this.emit(Bytecode.POP, currentFrame.size);
   }
 
   Number(ast) {
@@ -58,8 +83,60 @@ export class Compiler {
   }
 
   Identifier(ast) {
-    this.emit(Bytecode.LOAD, ast.name);
+    const symbol = this.getSymbol(ast.name);
+    if (symbol === null) {
+      throw new Error(
+        `[Line ${ast.line}] Reference error: ${ast.name} is not defined.`,
+      );
+    }
+
+    if (symbol.frame > 0) {
+      this.emit(Bytecode.LOAD_LOCAL, symbol.index);
+    } else {
+      this.emit(Bytecode.LOAD, ast.name);
+    }
+
     return Type.AUTO;
+  }
+
+  AssignStatement(ast) {
+    this.compile(ast.right);
+
+    const name = ast.left.name;
+    const symbol = this.getSymbol(name);
+
+    if (ast.local) {
+      if (symbol !== null) {
+        throw new Error(
+          `[Line ${ast.line}] Declaration error: local variable ${name} has already been declared.`,
+        );
+      }
+
+      if (this.frames.length === 0)
+        throw new Error(
+          `[Line ${ast.line}] Local variables only be allowed inside a block (if/while/for/func).`,
+        );
+
+      const currentFrame = this.frames.at(-1);
+      this.emit(Bytecode.STORE_LOCAL, currentFrame.size);
+      currentFrame.set(name, {
+        index: currentFrame.size,
+        frame: this.frames.length,
+      });
+      return;
+    }
+
+    if (symbol === null) {
+      this.globals[name] = { index: name, frame: 0 };
+      this.emit(Bytecode.STORE, name);
+      return;
+    }
+
+    if (symbol.frame > 0) {
+      this.emit(Bytecode.STORE_LOCAL, symbol.index);
+    } else {
+      this.emit(Bytecode.STORE, name);
+    }
   }
 
   UnaryExpression(ast) {
@@ -147,18 +224,15 @@ export class Compiler {
 
   FuncDeclaration(ast) {}
 
-  AssignStatement(ast) {
-    this.compile(ast.right);
-    this.emit(Bytecode.STORE, ast.left.name);
-  }
-
   WhileStatement(ast) {
     const end = this.generateLabelName();
     const start = this.generateLabelName();
     this.makeLabel(start);
     this.compile(ast.test);
     this.emit(Bytecode.JMPZ, end);
+    this.startFrame();
     this.compile(ast.body);
+    this.endFrame();
     this.emit(Bytecode.JMP, start);
     this.makeLabel(end);
   }
@@ -171,7 +245,9 @@ export class Compiler {
     if (ast.alternate !== null) this.emit(Bytecode.JMPZ, alternate);
     else this.emit(Bytecode.JMPZ, end);
 
+    this.startFrame();
     this.compile(ast.consequent);
+    this.endFrame();
 
     if (ast.alternate !== null) {
       this.emit(Bytecode.JMP, end);

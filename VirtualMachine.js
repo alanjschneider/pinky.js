@@ -1,5 +1,5 @@
 import { stdout } from 'node:process';
-import { Bytecode, BytecodeNames } from './Compiler.js';
+import { Bytecode, Mnemonic } from './Compiler.js';
 
 export class VirtualMachine {
   constructor() {
@@ -8,7 +8,7 @@ export class VirtualMachine {
     this.stack = [];
     this.program = [];
     this.labels = {};
-    this.variables = {};
+    this.globals = {};
   }
 
   execute(program, labels) {
@@ -17,15 +17,16 @@ export class VirtualMachine {
     this.stack = [];
     this.program = program;
     this.labels = labels;
-    this.variables = {};
+    this.globals = {};
 
     while (this.pc < this.program.length) {
       this.step();
     }
   }
 
-  stackPop() {
-    return this.stack[--this.sp];
+  stackPop(n = 1) {
+    this.sp -= n;
+    return this.stack[this.sp];
   }
 
   stackPush(value) {
@@ -54,6 +55,12 @@ export class VirtualMachine {
       case Bytecode.PUSH: {
         const value = this.program[this.pc++];
         this.stackPush(value);
+        break;
+      }
+
+      case Bytecode.POP: {
+        const n = this.program[this.pc++];
+        this.stackPop(n);
         break;
       }
 
@@ -111,16 +118,32 @@ export class VirtualMachine {
         break;
       }
 
+      case Bytecode.STORE_LOCAL: {
+        const value = this.stackPop();
+        const index = this.program[this.pc++];
+        if (index > this.sp) this.sp++; // if it is a new local it will be on the top of the stack
+        this.stack[index] = value;
+        this.stackPush(value);
+        break;
+      }
+
       case Bytecode.STORE: {
         const value = this.stackPop();
         const name = this.program[this.pc++];
-        this.variables[name] = value;
+        this.globals[name] = value;
+        break;
+      }
+
+      case Bytecode.LOAD_LOCAL: {
+        const index = this.program[this.pc++];
+        const value = this.stack[index];
+        this.stackPush(value);
         break;
       }
 
       case Bytecode.LOAD: {
         const name = this.program[this.pc++];
-        const value = this.variables[name];
+        const value = this.globals[name];
         this.stackPush(value);
         break;
       }
@@ -150,18 +173,21 @@ export function printCode(code, labels) {
     else stdout.write(' '.repeat(tab));
 
     const bytecode = code[pc++];
-    const name = BytecodeNames[bytecode];
+    const name = Mnemonic[bytecode];
 
     // prettier-ignore
     switch (bytecode) {
       case Bytecode.BIN_OP:
       case Bytecode.UN_OP:
       case Bytecode.PUSH:
+      case Bytecode.POP:
       case Bytecode.JMP:
       case Bytecode.JMPZ:
+      case Bytecode.STORE_LOCAL:
+      case Bytecode.LOAD_LOCAL:
       case Bytecode.STORE:
       case Bytecode.LOAD:
-        console.log(name.padEnd(tab, ' ') + '(' + code[pc++] + ')');
+        console.log(name.padEnd(tab * 1.5, ' ') + '(' + code[pc++] + ')');
         break;
 
       case Bytecode.HALT:
