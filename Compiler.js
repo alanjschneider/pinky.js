@@ -8,6 +8,42 @@ const Type = {
   AUTO: 4,
 };
 
+export const Operator = {
+  PLUS: 0,
+  MINUS: 1,
+  STAR: 2,
+  SLASH: 3,
+  CARET: 4,
+  MODULO: 5,
+  TILDE: 6,
+  AND: 7,
+  OR: 8,
+  LT: 9,
+  LE: 10,
+  GT: 11,
+  GE: 12,
+  EQEQ: 13,
+  TILDE_EQ: 14,
+};
+
+const OperatorValue = {
+  '+': Operator.PLUS,
+  '-': Operator.MINUS,
+  '*': Operator.STAR,
+  '/': Operator.SLASH,
+  '^': Operator.CARET,
+  '%': Operator.MODULO,
+  '~': Operator.TILDE,
+  and: Operator.AND,
+  or: Operator.OR,
+  '<': Operator.LT,
+  '<=': Operator.LE,
+  '>': Operator.GT,
+  '>=': Operator.GE,
+  '==': Operator.EQEQ,
+  '~=': Operator.TILDE_EQ,
+};
+
 export const Bytecode = {
   PUSH: 0, // put a value in the top of stack
   POP: 1, // remove n values from the top of stack
@@ -104,7 +140,7 @@ export class Compiler {
   }
 
   AssignStatement(ast) {
-    this.compile(ast.right);
+    this.decode(ast.right);
 
     const name = ast.left.name;
     const symbol = this.getSymbol(name);
@@ -146,35 +182,36 @@ export class Compiler {
   }
 
   UnaryExpression(ast) {
-    const rightType = this.compile(ast.right);
+    const rightType = this.decode(ast.right);
     this.emit(Bytecode.UN_OP);
+
     switch (ast.operator) {
       case '+':
       case '-':
-        if (rightType !== Type.NUMBER) {
+        if (rightType !== Type.AUTO && rightType !== Type.NUMBER) {
           throw new CompilerError(ast.line, 'Invalid unary operation.');
         }
-        this.emit(ast.operator);
+        this.emit(OperatorValue[ast.operator]);
         return Type.NUMBER;
       case '~':
-        if (rightType !== Type.BOOL) {
+        if (rightType !== Type.AUTO && rightType !== Type.BOOL) {
           throw new CompilerError(ast.line, 'Invalid unary operation.');
         }
-        this.emit(ast.operator);
+        this.emit(OperatorValue[ast.operator]);
         return Type.BOOL;
     }
   }
 
   BinaryExpression(ast) {
-    const leftType = this.compile(ast.left);
-    const rightType = this.compile(ast.right);
+    const leftType = this.decode(ast.left);
+    const rightType = this.decode(ast.right);
 
     this.emit(Bytecode.BIN_OP);
 
     switch (ast.operator) {
       case '+':
         if (leftType === Type.STRING || rightType === Type.STRING) {
-          this.emit(ast.operator);
+          this.emit(OperatorValue[ast.operator]);
           return Type.STRING;
         }
 
@@ -184,7 +221,7 @@ export class Compiler {
           }
         }
 
-        this.emit(ast.operator);
+        this.emit(OperatorValue[ast.operator]);
         return Type.NUMBER;
 
       case '-':
@@ -192,20 +229,24 @@ export class Compiler {
       case '/':
       case '^':
       case '%':
-        if (leftType !== Type.NUMBER || rightType !== Type.NUMBER) {
-          throw new CompilerError(ast.line, 'Invalid aritmetic operation.');
+        if (leftType !== Type.AUTO && rightType !== Type.AUTO) {
+          if (leftType !== Type.NUMBER || rightType !== Type.NUMBER) {
+            throw new CompilerError(ast.line, 'Invalid aritmetic operation.');
+          }
         }
 
-        this.emit(ast.operator);
+        this.emit(OperatorValue[ast.operator]);
         return Type.NUMBER;
 
       case 'and':
       case 'or':
-        if (leftType !== Type.BOOL || rightType !== Type.BOOL) {
-          throw new CompilerError(ast.line, 'Invalid boolean operation.');
+        if (leftType !== Type.AUTO && rightType !== Type.AUTO) {
+          if (leftType !== Type.BOOL || rightType !== Type.BOOL) {
+            throw new CompilerError(ast.line, 'Invalid boolean operation.');
+          }
         }
 
-        this.emit(ast.operator);
+        this.emit(OperatorValue[ast.operator]);
         return Type.BOOL;
 
       case '<':
@@ -218,12 +259,12 @@ export class Compiler {
           }
         }
 
-        this.emit(ast.operator);
+        this.emit(OperatorValue[ast.operator]);
         return Type.BOOL;
 
       case '==':
       case '~=':
-        this.emit(ast.operator);
+        this.emit(OperatorValue[ast.operator]);
         return Type.BOOL;
     }
   }
@@ -234,10 +275,10 @@ export class Compiler {
     const end = this.generateLabelName();
     const start = this.generateLabelName();
     this.makeLabel(start);
-    this.compile(ast.test);
+    this.decode(ast.test);
     this.emit(Bytecode.JMPZ, end);
     this.startFrame();
-    this.compile(ast.body);
+    this.decode(ast.body);
     this.endFrame();
     this.emit(Bytecode.JMP, start);
     this.makeLabel(end);
@@ -246,34 +287,59 @@ export class Compiler {
   ForStatement(ast) {
     const end = this.generateLabelName();
     const start = this.generateLabelName();
+    const negative = this.generateLabelName();
+    const body = this.generateLabelName();
+
     this.startFrame();
-    this.compile(ast.start);
+
+    this.decode(ast.start);
     const symbol = this.getSymbol(ast.start.left.name);
+
     this.makeLabel(start);
+
+    this.decode(ast.step);
+    this.emit(Bytecode.PUSH, 0);
+    this.emit(Bytecode.BIN_OP, Operator.GT);
+    this.emit(Bytecode.JMPZ, negative);
+
     this.emit(Bytecode.LOAD_LOCAL, symbol.index);
-    this.compile(ast.max);
-    this.emit(Bytecode.BIN_OP, '<');
+    this.decode(ast.max);
+    this.emit(Bytecode.BIN_OP, Operator.LT);
     this.emit(Bytecode.JMPZ, end);
-    this.compile(ast.body);
+    this.emit(Bytecode.JMP, body);
+
+    this.makeLabel(negative);
     this.emit(Bytecode.LOAD_LOCAL, symbol.index);
-    this.compile(ast.step);
-    this.emit(Bytecode.BIN_OP, '+');
+    this.decode(ast.max);
+    this.emit(Bytecode.BIN_OP, Operator.GT);
+    this.emit(Bytecode.JMPZ, end);
+
+    this.makeLabel(body);
+    this.decode(ast.body);
+    this.emit(Bytecode.LOAD_LOCAL, symbol.index);
+    this.decode(ast.step);
+    this.emit(Bytecode.BIN_OP, Operator.PLUS);
     this.emit(Bytecode.STORE_LOCAL, symbol.index);
     this.emit(Bytecode.JMP, start);
-    this.endFrame();
+
     this.makeLabel(end);
+    this.endFrame();
   }
 
   IfStatement(ast, endLabel = null) {
     const end = endLabel ?? this.generateLabelName();
-    const alternate = this.generateLabelName();
+    let alternate;
 
-    this.compile(ast.test);
-    if (ast.alternate !== null) this.emit(Bytecode.JMPZ, alternate);
-    else this.emit(Bytecode.JMPZ, end);
+    this.decode(ast.test);
+    if (ast.alternate !== null) {
+      alternate = this.generateLabelName();
+      this.emit(Bytecode.JMPZ, alternate);
+    } else {
+      this.emit(Bytecode.JMPZ, end);
+    }
 
     this.startFrame();
-    this.compile(ast.consequent);
+    this.decode(ast.consequent);
     this.endFrame();
 
     if (ast.alternate !== null) {
@@ -282,7 +348,9 @@ export class Compiler {
       if (ast.alternate.type === 'IfStatement') {
         this.IfStatement(ast.alternate, end);
       } else {
-        this.compile(ast.alternate);
+        this.startFrame();
+        this.decode(ast.alternate);
+        this.endFrame();
       }
     }
 
@@ -290,27 +358,38 @@ export class Compiler {
   }
 
   PrintStatement(ast) {
-    this.compile(ast.expression);
+    this.decode(ast.expression);
     if (ast.end === '') this.emit(Bytecode.PRINT);
     else this.emit(Bytecode.PRINTLN);
   }
 
   Statements(ast) {
     for (const statement of ast.body) {
-      this.compile(statement);
+      this.decode(statement);
     }
   }
 
   Program(ast) {
     this.labels['START'] = this.pc;
-    this.compile(ast.body);
+    this.decode(ast.body);
     this.emit(Bytecode.HALT);
   }
 
-  compile(ast) {
+  decode(ast) {
     if (!this[ast.type]) {
       throw new Error('Invalid code.');
     }
     return this[ast.type](ast);
+  }
+
+  compile(ast) {
+    this.output = [];
+    this.labels = {};
+    this.localsCount = 0;
+    this.globals = {};
+    this.frames = [];
+    this.pc = 0;
+    this.labelsCount = 0;
+    this.decode(ast);
   }
 }
