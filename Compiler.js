@@ -67,6 +67,7 @@ export class Compiler {
   endFrame() {
     const currentFrame = this.frames.pop();
     this.emit(Bytecode.POP, currentFrame.size);
+    this.localsCount -= currentFrame.size;
   }
 
   Number(ast) {
@@ -123,9 +124,9 @@ export class Compiler {
         );
 
       const currentFrame = this.frames.at(-1);
-      this.emit(Bytecode.STORE_LOCAL, currentFrame.size);
+      this.emit(Bytecode.STORE_LOCAL, this.localsCount);
       currentFrame.set(name, {
-        index: currentFrame.size,
+        index: this.localsCount++,
         frame: this.frames.length,
       });
       return;
@@ -239,6 +240,27 @@ export class Compiler {
     this.compile(ast.body);
     this.endFrame();
     this.emit(Bytecode.JMP, start);
+    this.makeLabel(end);
+  }
+
+  ForStatement(ast) {
+    const end = this.generateLabelName();
+    const start = this.generateLabelName();
+    this.startFrame();
+    this.compile(ast.start);
+    const symbol = this.getSymbol(ast.start.left.name);
+    this.makeLabel(start);
+    this.emit(Bytecode.LOAD_LOCAL, symbol.index);
+    this.compile(ast.max);
+    this.emit(Bytecode.BIN_OP, '<');
+    this.emit(Bytecode.JMPZ, end);
+    this.compile(ast.body);
+    this.emit(Bytecode.LOAD_LOCAL, symbol.index);
+    this.compile(ast.step);
+    this.emit(Bytecode.BIN_OP, '+');
+    this.emit(Bytecode.STORE_LOCAL, symbol.index);
+    this.emit(Bytecode.JMP, start);
+    this.endFrame();
     this.makeLabel(end);
   }
 
