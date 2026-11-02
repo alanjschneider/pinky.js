@@ -11,8 +11,10 @@ import { print } from './Ast.js';
 import { Lexer } from './Lexer.js';
 import { Parser } from './Parser.js';
 import { Interpreter } from './Interpreter.js';
-import { Compiler } from './Compiler.js';
-import { printCode, VirtualMachine } from './VirtualMachine.js';
+import { Compiler } from './CompilerRuntime.js';
+import { printCode, VirtualMachine } from './VirtualMachineRuntime.js';
+// import { Compiler } from './CompilerStatic.js';
+// import { printCode, VirtualMachine } from './VirtualMachineStatic.js';
 
 const args = process.argv.slice(2);
 const options = {

@@ -146,7 +146,11 @@ export class Compiler {
     const symbol = this.getSymbol(name);
 
     if (ast.local) {
-      if (symbol !== null && symbol.frame > 0) {
+      if (
+        symbol !== null && // it exists
+        symbol.frame > 0 && // it's not in global frame
+        symbol.frame === this.frames.length // it's in the current frame
+      ) {
         throw new CompilerError(
           ast.line,
           `Declaration error: local variable ${name} has already been declared.`,

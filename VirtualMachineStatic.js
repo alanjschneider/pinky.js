@@ -109,9 +109,13 @@ export class VirtualMachine {
   STORELOCAL() {
     const value = this.stackPop();
     const index = this.program[this.pc++];
-    if (index > this.sp) this.sp++; // if it is a new local it will be on the top of the stack
-    this.stack[index] = value;
-    this.stackPush(value);
+    if (index < this.sp) {
+      // modifying existing local var
+      this.stack[index] = value;
+    } else {
+      // new local var
+      this.stackPush(value);
+    }
   }
 
   STORE() {
