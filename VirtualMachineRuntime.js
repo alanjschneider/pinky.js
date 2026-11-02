@@ -1,5 +1,5 @@
 import { stdout } from 'node:process';
-import { Bytecode, Mnemonic, Operator, Type } from './CompilerRuntime.js';
+import { Bytecode, Mnemonic, Operator } from './CompilerRuntime.js';
 
 export class VirtualMachine {
   constructor() {
@@ -34,13 +34,11 @@ export class VirtualMachine {
   }
 
   PRINT() {
-    const [type, value] = this.stackPop();
-    stdout.write(value);
+    stdout.write(this.stackPop());
   }
 
   PRINTLN() {
-    const [type, value] = this.stackPop();
-    stdout.write(value + '\n');
+    stdout.write(this.stackPop() + '\n');
   }
 
   PUSH() {
@@ -55,104 +53,139 @@ export class VirtualMachine {
 
   BINOP() {
     const op = this.program[this.pc++];
-    const [rightType, right] = this.stackPop();
-    const [leftType, left] = this.stackPop();
+    const right = this.stackPop();
+    const left = this.stackPop();
 
     switch (op) {
       case Operator.PLUS: {
-        if (leftType === Type.STRING || rightType === Type.STRING) {
-          this.stackPush([Type.STRING, left + right]);
+        if (typeof left === 'string' || typeof right === 'string') {
+          this.stackPush(left + right);
           break;
         }
 
-        if (leftType !== Type.NUMBER || rightType !== Type.NUMBER) {
+        if (typeof left !== 'number' || typeof right !== 'number') {
           throw new Error('Invalid aritmetic operation.');
         }
 
-        this.stackPush([Type.NUMBER, left + right]);
+        this.stackPush(left + right);
         break;
       }
 
       case Operator.MINUS: {
-        if (leftType !== Type.NUMBER || rightType !== Type.NUMBER) {
+        if (typeof left !== 'number' || typeof right !== 'number') {
           throw new Error('Invalid aritmetic operation.');
         }
-        this.stackPush([Type.NUMBER, left - right]);
+        this.stackPush(left - right);
         break;
       }
 
       case Operator.STAR: {
-        if (leftType !== Type.NUMBER || rightType !== Type.NUMBER) {
+        if (typeof left !== 'number' || typeof right !== 'number') {
           throw new Error('Invalid aritmetic operation.');
         }
-        this.stackPush([Type.NUMBER, left * right]);
+        this.stackPush(left * right);
         break;
       }
 
       case Operator.SLASH: {
-        if (leftType !== Type.NUMBER || rightType !== Type.NUMBER) {
+        if (typeof left !== 'number' || typeof right !== 'number') {
           throw new Error('Invalid aritmetic operation.');
         }
         if (right === 0) throw new Error('Forbidden division by 0.');
-        this.stackPush([Type.NUMBER, left / right]);
+        this.stackPush(left / right);
         break;
       }
 
       case Operator.CARET: {
-        if (leftType !== Type.NUMBER || rightType !== Type.NUMBER) {
+        if (typeof left !== 'number' || typeof right !== 'number') {
           throw new Error('Invalid aritmetic operation.');
         }
-        this.stackPush([Type.NUMBER, Math.pow(left, right)]);
+        this.stackPush(Math.pow(left, right));
         break;
       }
 
       case Operator.MODULO: {
-        if (leftType !== Type.NUMBER || rightType !== Type.NUMBER) {
+        if (typeof left !== 'number' || typeof right !== 'number') {
           throw new Error('Invalid aritmetic operation.');
         }
-        this.stackPush([Type.NUMBER, left % right]);
+        this.stackPush(left % right);
         break;
       }
 
       case Operator.AND:
-        this.stackPush([Type.BOOL, left && right]);
+        if (typeof left !== 'boolean' || typeof right !== 'boolean') {
+          throw new Error('Invalid logic operation.');
+        }
+        this.stackPush(left && right);
         break;
       case Operator.OR:
-        this.stackPush([Type.BOOL, left || right]);
+        if (typeof left !== 'boolean' || typeof right !== 'boolean') {
+          throw new Error('Invalid logic operation.');
+        }
+        this.stackPush(left || right);
         break;
       case Operator.LT:
-        this.stackPush([Type.BOOL, left < right]);
+        if (typeof left !== 'number' || typeof right !== 'number') {
+          throw new Error('Invalid logic operation.');
+        }
+        this.stackPush(left < right);
         break;
       case Operator.LE:
-        this.stackPush([Type.BOOL, left <= right]);
+        if (typeof left !== 'number' || typeof right !== 'number') {
+          throw new Error('Invalid logic operation.');
+        }
+        this.stackPush(left <= right);
         break;
       case Operator.GT:
-        this.stackPush([Type.BOOL, left > right]);
+        if (typeof left !== 'number' || typeof right !== 'number') {
+          throw new Error('Invalid logic operation.');
+        }
+        this.stackPush(left > right);
         break;
       case Operator.GE:
-        this.stackPush([Type.BOOL, left >= right]);
+        if (typeof left !== 'number' || typeof right !== 'number') {
+          throw new Error('Invalid logic operation.');
+        }
+        this.stackPush(left >= right);
         break;
       case Operator.EQEQ:
-        this.stackPush([Type.BOOL, left === right]);
+        if (typeof left !== 'number' || typeof right !== 'number') {
+          throw new Error('Invalid logic operation.');
+        }
+        this.stackPush(left === right);
         break;
       case Operator.TILDE_EQ:
-        this.stackPush([Type.BOOL, left !== right]);
+        if (typeof left !== 'number' || typeof right !== 'number') {
+          throw new Error('Invalid logic operation.');
+        }
+        this.stackPush(left !== right);
         break;
     }
   }
 
   UNOP() {
     const op = this.program[this.pc++];
-    const [rightType, right] = this.stackPop();
+    const right = this.stackPop();
 
-    // if (rightType !== Type.NUMBER) {
-    //   throw new CompilerError(ast.line, 'Invalid unary operation.');
-    // }
-    // prettier-ignore
     switch (op) {
-      case Operator.PLUS:  this.stackPush([Type.NUMBER, +right]); break;
-      case Operator.MINUS: this.stackPush([Type.NUMBER, -right]); break;
-      case Operator.TILDE: this.stackPush([Type.BOOL, !right]); break;
+      case Operator.PLUS:
+        if (typeof right !== 'number') {
+          throw new Error('Invalid aritmetic operation.');
+        }
+        this.stackPush(+right);
+        break;
+      case Operator.MINUS:
+        if (typeof right !== 'number') {
+          throw new Error('Invalid aritmetic operation.');
+        }
+        this.stackPush(-right);
+        break;
+      case Operator.TILDE:
+        if (typeof right !== 'boolean') {
+          throw new Error('Invalid logic operation.');
+        }
+        this.stackPush(!right);
+        break;
     }
   }
 
@@ -162,7 +195,7 @@ export class VirtualMachine {
   }
 
   JMPZ() {
-    const [type, value] = this.stackPop();
+    const value = this.stackPop();
     const label = this.program[this.pc++];
     if (!value) {
       this.pc = this.labels[label];

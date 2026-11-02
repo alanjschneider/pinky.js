@@ -1,12 +1,5 @@
 import { CompilerError } from './CompilerError.js';
 
-export const Type = {
-  NUMBER: 0,
-  STRING: 1,
-  BOOL: 2,
-  NULL: 3,
-};
-
 export const Operator = {
   PLUS: 0,
   MINUS: 1,
@@ -108,15 +101,15 @@ export class Compiler {
   }
 
   Number(ast) {
-    this.emit(Bytecode.PUSH, [Type.NUMBER, ast.value]);
+    this.emit(Bytecode.PUSH, ast.value);
   }
 
   String(ast) {
-    this.emit(Bytecode.PUSH, [Type.STRING, ast.value]);
+    this.emit(Bytecode.PUSH, ast.value);
   }
 
   Bool(ast) {
-    this.emit(Bytecode.PUSH, [Type.BOOL, ast.value]);
+    this.emit(Bytecode.PUSH, ast.value);
   }
 
   Identifier(ast) {
@@ -235,7 +228,7 @@ export class Compiler {
     this.makeLabel(start);
 
     this.decode(ast.step);
-    this.emit(Bytecode.PUSH, [Type.NUMBER, 0]);
+    this.emit(Bytecode.PUSH, 0);
     this.emit(Bytecode.BIN_OP, Operator.GT);
     this.emit(Bytecode.JMPZ, negative);
 
